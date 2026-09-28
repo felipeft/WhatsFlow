@@ -1,0 +1,106 @@
+name: whatsflow
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Copie .env.example para .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB no .env}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - development
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  backend:
+    build:
+      context: .
+      target: backend
+    init: true
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    command:
+      [
+        'sh',
+        '-c',
+        'pnpm db:deploy && exec pnpm --filter @whatsflow/backend dev',
+      ]
+    ports:
+      - '127.0.0.1:${PORT:-3000}:3000'
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/backend/src
+          target: /workspace/apps/backend/src
+          ignore:
+            - generated/
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - development
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+    init: true
+    environment:
+      API_PROXY_TARGET: http://backend:3000
+      FRONTEND_PORT: 5173
+    ports:
+      - '127.0.0.1:${FRONTEND_PORT:-5173}:5173'
+    develop:
+      watch:
+        - action: sync
+          path: ./apps/frontend/src
+          target: /workspace/apps/frontend/src
+        - action: sync
+          path: ./apps/frontend/index.html
+          target: /workspace/apps/frontend/index.html
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - development
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
+
+networks:
+  development:
+    driver: bridge
