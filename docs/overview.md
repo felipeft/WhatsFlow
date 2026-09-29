@@ -60,6 +60,8 @@ As decisões das próximas Sprints devem respeitar os seguintes princípios, nes
 
 Para preparar e validar o ambiente atual, consulte o [guia de infraestrutura da Fase 2](infrastructure.md) e o [README de desenvolvimento](../README.md).
 
+As auditorias de Sprint ficam em [docs/reviews](reviews/), começando pelo [review técnico da Sprint 1](reviews/sprint-01-review.md).
+
 | Documento                          | Pergunta que responde                               | Público principal                        |
 | ---------------------------------- | --------------------------------------------------- | ---------------------------------------- |
 | [scope.md](scope.md)               | O que o MVP entrega e o que não entrega?            | Produto, desenvolvimento e stakeholders  |
