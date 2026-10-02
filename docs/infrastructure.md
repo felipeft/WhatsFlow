@@ -1,5 +1,7 @@
 # Sprint 1 — Fase 2: infraestrutura
 
+Este é o registro histórico da entrega de 2026-09-28. As afirmações de ausência de tabelas/integrações e os resultados abaixo referem-se àquela fase. Para o estado atual com canal Meta, quatro tabelas técnicas adicionais e worker, consulte [meta-cloud-api.md](meta-cloud-api.md) e [review parcial da Sprint 2](reviews/sprint-02-review.md).
+
 ## Índice
 
 1. [Resumo da implementação](#1-resumo-da-implementação)

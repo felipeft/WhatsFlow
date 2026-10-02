@@ -2,7 +2,7 @@
 
 ## Índice
 
-- [Estado da implementação — Sprint 1, Fase 2](#estado-da-implementação--sprint-1-fase-2)
+- [Estado da implementação — Sprint 2, Fases 4 e 5](#estado-da-implementação--sprint-2-fases-4-e-5)
 
 1. [Objetivos arquiteturais](#objetivos-arquiteturais)
 2. [Visão geral](#visão-geral)
@@ -18,9 +18,17 @@
 12. [Referências técnicas](#referências-técnicas)
 13. [Recomendações do Arquiteto](#recomendações-do-arquiteto)
 
-## Estado da implementação — Sprint 1, Fase 2
+## Estado da implementação — Sprint 2, Fases 4 e 5
 
-Esta fase materializa apenas a fundação: workspace pnpm, React/Vite, Express, TypeScript, logging HTTP, health checks, Prisma e PostgreSQL em Docker Compose. A stack atual está na ADR-007. Os módulos, integrações e diagramas de atendimento abaixo descrevem o destino do MVP, não funcionalidades já disponíveis. Filas, worker, autenticação e regras de domínio serão criados nas etapas correspondentes.
+Sprints 1 e 2 concluídas. A Fase 4 adicionou o canal Meta: webhook assinado, inbox PostgreSQL, worker separado, mensagens técnicas, outbox transacional, cliente HTTP e estados de entrega. ADR-009 concretiza a fila PostgreSQL já prevista como alternativa na ADR-002. Em 2026-10-02, o número brasileiro percorreu o fluxo real pelo WhatsFlow: challenge, POST assinado, persistência, deduplicação, worker, HTTP 200 da Meta, recibos `sent`/`delivered` e confirmação no aparelho. O Quick Tunnel usado no aceite é infraestrutura temporária de desenvolvimento, não deploy de produção.
+
+A Fase 5 evoluiu `ChannelMessage` sem substituí-lo: cada mensagem pertence obrigatoriamente a uma `Conversation`, identificada por canal, Phone Number ID empresarial e contato externo. A criação/recuperação usa upsert amparado por chave única no PostgreSQL; `lastMessageAt` avança monotonicamente. Uma migration aditiva agrupou e vinculou as mensagens reais já existentes. O módulo `modules/conversations` oferece listagem, detalhe e histórico com paginação por cursor, retornando somente campos normalizados — nunca o payload bruto da Meta. A decisão está na ADR-011.
+
+`integrations/meta` concentra DTOs, controller HTTP, serviço de admissão, cliente externo, repositório Prisma e processamento técnico. O controller depende do serviço, o serviço depende do contrato InboxWriter; o bootstrap fornece o adaptador Prisma. Worker depende do contrato MetaSender, implementado pelo cliente HTTP. Não há dependência circular nem regra de atendimento. O envio parte de CLI administrativa local; nenhuma rota pública de envio é exposta. Detalhes, limites e comandos estão em [meta-cloud-api.md](meta-cloud-api.md).
+
+Os diagramas e módulos de atendimento a seguir representam o destino do MVP: o registro básico de conversas e histórico já existe; contatos enriquecidos, estados de atendimento, IA, autenticação e painel funcional ainda não estão implementados. O frontend continua vazio.
+
+O WhatsFlow é o produto técnico. A Atlas Tech é somente a empresa demonstrativa e deve entrar por dados configuráveis de catálogo, FAQ, políticas e identidade visual. Nenhum módulo, adaptador externo ou regra estrutural pode depender do nome, segmento ou identidade jurídica dessa demonstração (ADR-010).
 
 O módulo Operations inicia com liveness (processo) e readiness (SELECT 1 por Prisma). A composição das dependências fica no bootstrap; a aplicação Express pode ser testada sem iniciar servidor ou banco. Prisma fica na infraestrutura do backend. Aliases serão resolvidos tanto em desenvolvimento quanto no JavaScript compilado.
 
@@ -63,7 +71,7 @@ flowchart TB
         Frontend[Frontend web]
         API[Backend API]
         Worker[Worker assíncrono]
-        Queue[(Redis / fila)]
+        Queue[(Fila PostgreSQL / outbox)]
         DB[(PostgreSQL)]
         Obs[Logs, métricas e traces]
     end
@@ -168,9 +176,9 @@ Workers devem ser idempotentes: uma nova execução não pode produzir resposta 
 
 O conteúdo completo de mensagens é dado potencialmente pessoal. Acesso, retenção, backup e exclusão devem refletir essa classificação.
 
-### Redis e fila
+### Fila durável
 
-Fornecem desacoplamento temporal, retentativas e controle de concorrência. Redis não é a fonte de verdade do negócio. Se a infraestrutura inicial não puder operar Redis com confiabilidade, uma fila baseada em PostgreSQL é alternativa aceitável; essa escolha deve ser validada antes da implementação.
+Na Fase 4, inbox e outbox são consumidas diretamente do PostgreSQL com reservas atômicas, conforme ADR-009. Retentativas e estados sobrevivem ao reinício, sem Redis. API e worker compartilham o banco e podem rodar separadamente. Redis/BullMQ fica como alternativa futura caso medições justifiquem outro serviço; não é pré-requisito do Compose atual.
 
 ### WhatsApp Cloud API
 
@@ -184,20 +192,20 @@ O histórico canônico permanece no PostgreSQL. Mesmo que recursos de estado do 
 
 ## Módulos do backend
 
-| Módulo            | Responsabilidade                                        | Pode depender de                      |
-| ----------------- | ------------------------------------------------------- | ------------------------------------- |
-| Identity & Access | Usuários internos, papéis, sessões e autorização        | Auditoria                             |
-| Contacts          | Identidade mínima do contato no canal                   | Persistência                          |
-| Conversations     | Ciclo de vida, responsável, modo e invariantes          | Contacts, Messaging, Audit            |
-| Messaging         | Mensagens inbound/outbound e estados de entrega         | Conversations, integrações por portas |
-| Automation        | Classificação, política, contexto e decisão de resposta | Conversations, Knowledge, AI port     |
-| Knowledge         | FAQ, catálogo, versões e ativação                       | Audit                                 |
-| Handoff           | Regras e registro de escalonamento/assunção             | Conversations, Identity               |
-| Webhooks          | Admissão e normalização de eventos externos             | Messaging, Queue port                 |
-| Audit             | Eventos imutáveis de ações relevantes                   | Persistência                          |
-| Operations        | Health, métricas, jobs com falha e diagnósticos         | Todos por eventos/telemetria          |
+| Módulo            | Responsabilidade                                           | Pode depender de                     |
+| ----------------- | ---------------------------------------------------------- | ------------------------------------ |
+| Identity & Access | Usuários internos, papéis, sessões e autorização           | Auditoria                            |
+| Contacts          | Identidade mínima do contato no canal                      | Persistência                         |
+| Conversations     | Identidade básica, última atividade e leitura do histórico | Persistência                         |
+| Messaging         | Mensagens inbound/outbound e estados de entrega            | Persistência, integrações por portas |
+| Automation        | Classificação, política, contexto e decisão de resposta    | Conversations, Knowledge, AI port    |
+| Knowledge         | FAQ, catálogo, versões e ativação                          | Audit                                |
+| Handoff           | Regras e registro de escalonamento/assunção                | Conversations, Identity              |
+| Webhooks          | Admissão e normalização de eventos externos                | Messaging, Queue port                |
+| Audit             | Eventos imutáveis de ações relevantes                      | Persistência                         |
+| Operations        | Health, métricas, jobs com falha e diagnósticos            | Todos por eventos/telemetria         |
 
-Dependências cíclicas são proibidas. Coordenação entre módulos ocorre por casos de uso ou eventos internos, não por acesso direto às tabelas de outro módulo.
+Dependências cíclicas são proibidas. Coordenação entre módulos ocorre por casos de uso ou transações explícitas, não por chamadas circulares. Na Fase 5, o adaptador Meta normaliza mensagens e assegura a identidade mínima da conversa na mesma transação; o módulo Conversations fornece a leitura paginada. Estados de atendimento e contatos enriquecidos continuam fora do escopo.
 
 ## Dados e consistência
 
@@ -205,17 +213,24 @@ Dependências cíclicas são proibidas. Coordenação entre módulos ocorre por 
 
 ```mermaid
 erDiagram
-    CONTACT ||--o{ CONVERSATION : inicia
-    CONVERSATION ||--o{ MESSAGE : contem
+    CONVERSATION ||--|{ CHANNEL_MESSAGE : contem
+    META_OUTBOX ||--|| CHANNEL_MESSAGE : envia
+    CONTACT ||--o{ CONVERSATION : inicia_futuramente
     CONVERSATION ||--o{ HANDOFF : possui
     USER ||--o{ HANDOFF : assume
     SERVICE_CATEGORY ||--o{ SERVICE : agrupa
     FAQ_CATEGORY ||--o{ FAQ_ITEM : agrupa
     CONVERSATION ||--o{ AUDIT_EVENT : gera
-    MESSAGE ||--o{ PROCESSING_ATTEMPT : processada_em
+    CHANNEL_MESSAGE ||--o{ PROCESSING_ATTEMPT : processada_em
 ```
 
-O diagrama é conceitual, não um esquema de banco final.
+`CONVERSATION` e `CHANNEL_MESSAGE` refletem o schema atual. As demais relações continuam conceituais e serão materializadas apenas nas Sprints correspondentes. A identidade atual da conversa é `(channel, phoneNumberId, externalContactId)`; ela não representa multitenancy nem perfil completo de contato.
+
+### Consulta do histórico
+
+O backend expõe `GET /api/conversations`, `GET /api/conversations/:id` e `GET /api/conversations/:id/messages`. Conversas são ordenadas por atividade mais recente; mensagens usam `occurredAt` e ID como desempate cronológico. Ambos os conjuntos usam cursor opaco e limite máximo de 100 registros, evitando offset instável e carregamento ilimitado.
+
+O payload bruto permanece restrito à persistência técnica. A API projeta somente identificadores necessários, direção, tipo, texto quando aplicável, timestamps e estado de entrega. Como autenticação pertence à Sprint 4, essas rotas são base interna para o dashboard futuro e não devem ser expostas publicamente sem controle de acesso.
 
 ### Invariantes principais
 
@@ -230,6 +245,8 @@ O diagrama é conceitual, não um esquema de banco final.
 ### Consistência e outbox
 
 Persistir dados e publicar diretamente em uma fila são duas operações distintas. Para evitar que uma transação seja confirmada sem que o trabalho seja agendado, o desenho prevê o padrão **transactional outbox**: a mesma transação grava a mudança e um evento pendente; um publicador o entrega à fila com idempotência.
+
+Na implementação PostgreSQL atual, a outbox já é a fila e não existe publicador para outro broker. Entrada: envelope validado é gravado na inbox antes do ACK, depois o worker grava mensagens/recibos e conclui a inbox na mesma transação. Saída: mensagem e outbox são criadas juntas. IDs externos deduplicam mensagens; UUID informado pela CLI deduplica intenção de envio. `accepted` não significa `delivered`. Timeout/crash/5xx são `uncertain`, sem reenvio automático; recibos posteriores podem reconciliar pelo ID externo/callback opaco. HTTP com rejeição explícita por rate limit pode ser repetido até cinco tentativas totais.
 
 Não se promete “exactly once” ponta a ponta, pois redes e provedores podem repetir eventos. O sistema buscará processamento **at least once com efeitos idempotentes**.
 
@@ -348,12 +365,12 @@ O monólito modular combina simplicidade operacional com separação de responsa
 - [OpenAI — Migração e direção da Responses API](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 - [OpenAI — Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [OpenAI — Práticas recomendadas de segurança](https://developers.openai.com/api/docs/guides/safety-best-practices)
-- Documentação oficial da WhatsApp Cloud API deve ser revisitada na Sprint 2 para confirmar contratos, versões, autenticação, políticas de envio e limites vigentes.
+- A documentação oficial da WhatsApp Cloud API foi confrontada na Sprint 2 e deve continuar sendo revisitada quando versão, autenticação, políticas ou limites mudarem.
 
 ## Recomendações do Arquiteto
 
-- Produzir, na Sprint 2, um diagrama de implantação referente ao provedor escolhido e um threat model dos fluxos públicos.
-- Validar Redis/BullMQ versus fila transacional em PostgreSQL com base no ambiente de hospedagem; manter a porta de fila independente da escolha.
-- Definir SLOs somente após teste de carga e baseline, mas instrumentar as métricas antes do piloto.
+- Produzir diagrama de implantação e threat model antes de substituir o ambiente temporário por deploy persistente.
+- Medir a fila PostgreSQL antes de reconsiderar Redis/BullMQ; manter a porta de fila independente da escolha.
+- Definir SLOs somente após teste de carga e baseline, mas instrumentar as métricas antes da demonstração controlada.
 - Manter o modelo de IA configurável e selecionar uma versão por avaliação; não codificar um nome de modelo em regras de domínio.
 - Criar testes de contrato com exemplos reais e sanitizados de webhooks antes de liberar o endpoint público.

@@ -17,9 +17,13 @@ Este diretório contém a base de produto e arquitetura do WhatsFlow para a Spri
 
 A Fase 1 desta Sprint foi exclusivamente documental. A Fase 2, solicitada posteriormente pelo responsável do projeto, prepara infraestrutura executável com React/Vite, Express, PostgreSQL e Prisma, sem regras de negócio ou integrações externas. A mudança de sequência e stack está registrada na ADR-007 de [decisions.md](decisions.md). Os fluxos de atendimento descritos aqui continuam sendo a arquitetura-alvo do MVP.
 
+Estado atual: Sprints 1 e 2 concluídas. Em 2026-10-02, a integração Meta e a fila PostgreSQL (ADR-009) foram validadas ponta a ponta com o número brasileiro: callback público, assinatura, inbound persistido, deduplicação, worker, outbound aceito e recibos `sent`/`delivered`, além da confirmação física no aparelho. A Fase 5 completou o modelo `Conversation 1:N ChannelMessage`, fez backfill sem perda dos dados reais e disponibilizou histórico paginado no backend (ADR-011). O endpoint HTTPS usado no aceite foi temporário e não representa deploy de produção. Consulte [guia Meta](meta-cloud-api.md) e [relatório final da Sprint 2](reviews/sprint-02-review.md).
+
 ## Resumo executivo
 
-O WhatsFlow será uma plataforma web de atendimento para pequenas empresas, integrada à WhatsApp Cloud API. No MVP, uma assistência técnica fictícia usará a plataforma para:
+O WhatsFlow é uma plataforma de atendimento inteligente para pequenas empresas — **AI Customer Assistant Platform for Small Businesses** — desenvolvida como projeto profissional de portfólio, não como SaaS comercial. O MVP demonstra integração entre WhatsApp Cloud API, IA, banco de dados, base de conhecimento e painel web.
+
+A **Atlas Tech**, loja fictícia de eletrônicos e acessórios, fornece apenas o conteúdo da demonstração. Ela não é o produto e não define o núcleo do sistema. Com outro conjunto de dados configuráveis, a mesma arquitetura deve representar outra pequena empresa sem mudanças estruturais. No cenário demonstrativo, a plataforma permitirá:
 
 - receber mensagens enviadas por seus clientes;
 - manter o histórico de contatos e conversas;
@@ -74,26 +78,26 @@ As auditorias de Sprint ficam em [docs/reviews](reviews/), começando pelo [revi
 
 | Termo                    | Significado neste projeto                                                     |
 | ------------------------ | ----------------------------------------------------------------------------- |
-| Cliente                  | Pessoa que conversa com a assistência técnica pelo WhatsApp.                  |
+| Cliente                  | Pessoa que conversa com a empresa demonstrativa pelo WhatsApp.                |
 | Atendente                | Usuário interno que consulta ou assume conversas no painel.                   |
 | Conversa                 | Agrupamento lógico das mensagens de um cliente com a empresa.                 |
 | Mensagem                 | Evento individual recebido ou enviado, com direção, conteúdo e estado.        |
 | Atendimento automatizado | Período em que o sistema pode produzir respostas com IA.                      |
 | Atendimento humano       | Estado em que a automação de respostas fica suspensa e um atendente assume.   |
 | Escalonamento ou handoff | Transição controlada do atendimento automatizado para o humano.               |
-| Catálogo                 | Fonte estruturada e aprovada de serviços oferecidos pela empresa.             |
+| Catálogo                 | Fonte estruturada e aprovada de produtos oferecidos pela empresa.             |
 | FAQ                      | Pergunta frequente com conteúdo de resposta previamente aprovado.             |
 | Webhook                  | Chamada HTTP enviada pela Meta ao backend para notificar eventos.             |
 | Idempotência             | Propriedade que impede um mesmo evento repetido de causar efeitos duplicados. |
 
 ## Premissas desta Sprint
 
-- Haverá inicialmente uma única empresa fictícia, mas os limites de domínio não devem impedir futura multitenancy.
+- Haverá inicialmente uma única empresa demonstrativa, a Atlas Tech, sem identidade jurídica ou acoplamento no núcleo; futura troca de cenário deve exigir apenas dados/configuração.
 - O canal do MVP é somente WhatsApp Cloud API.
 - O idioma inicial é português do Brasil.
 - O painel é de uso interno e responsivo, sem compromisso de aplicativo móvel nativo.
-- O catálogo é simples e informativo; preço final e diagnóstico técnico podem exigir confirmação humana.
-- A IA não autoriza pagamento, não fecha orçamento vinculante e não executa ações irreversíveis.
+- O catálogo é simples e informativo; disponibilidade, compatibilidade, entrega, pagamento, garantia e troca podem exigir confirmação humana.
+- A IA não confirma estoque, não autoriza pagamento e não executa ações irreversíveis.
 - Texto é o tipo de mensagem plenamente automatizado no MVP. Outros tipos podem ser registrados e encaminhados, conforme detalhado no escopo.
 - Provedor, modelo e parâmetros de IA serão configuráveis. A escolha final do modelo depende de avaliação de qualidade, latência e custo com um conjunto de conversas representativo.
 
@@ -111,7 +115,7 @@ Uma decisão considerada definitiva neste momento pode ser substituída. A subst
 
 ## Recomendações do Arquiteto
 
-- Validar este vocabulário com alguém representando a operação da assistência antes da Sprint 2.
+- Validar este vocabulário com alguém representando uma pequena operação de varejo antes da Sprint de automação.
 - Definir um responsável de produto para aprovar FAQ, catálogo, tom de voz e critérios de escalonamento.
 - Tratar métricas, privacidade e atendimento humano como requisitos do MVP, não como acabamento posterior.
 - Revisar estes documentos no encerramento de cada Sprint para evitar divergência entre arquitetura descrita e sistema real.

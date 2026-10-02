@@ -7,4 +7,85 @@ datasource db {
   provider = "postgresql"
 }
 
-// Sem modelos: esta fase valida infraestrutura, não implementa domínio.
+// Eventos brutos do provedor, mantidos separados do histórico normalizado.
+model MetaInbox {
+  id          String    @id @default(uuid()) @db.Uuid
+  digest      String    @unique
+  payload     Json
+  state       String    @default("pending")
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now())
+  leaseUntil  DateTime?
+  leaseToken  String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([state, availableAt])
+}
+
+model Conversation {
+  id                String           @id @default(uuid()) @db.Uuid
+  channel           String           @default("whatsapp")
+  phoneNumberId     String
+  externalContactId String
+  lastMessageAt     DateTime
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  messages          ChannelMessage[]
+
+  @@unique([channel, phoneNumberId, externalContactId])
+  @@index([lastMessageAt, id])
+}
+
+model ChannelMessage {
+  id                String       @id @default(uuid()) @db.Uuid
+  conversationId    String       @db.Uuid
+  conversation      Conversation @relation(fields: [conversationId], references: [id])
+  phoneNumberId     String
+  providerMessageId String?
+  direction         String
+  peer              String
+  type              String
+  content           Json
+  status            String
+  statusRank        Int          @default(0)
+  errorCode         Int?
+  providerTimestamp DateTime?
+  occurredAt        DateTime
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  outbox            MetaOutbox?
+
+  @@unique([phoneNumberId, providerMessageId])
+  @@index([conversationId, occurredAt, id])
+  @@index([phoneNumberId, peer, createdAt])
+}
+
+model MetaOutbox {
+  id          String         @id @default(uuid()) @db.Uuid
+  messageId   String         @unique @db.Uuid
+  message     ChannelMessage @relation(fields: [messageId], references: [id])
+  state       String         @default("pending")
+  attempts    Int            @default(0)
+  availableAt DateTime       @default(now())
+  leaseUntil  DateTime?
+  leaseToken  String?
+  createdAt   DateTime       @default(now())
+
+  @@index([state, availableAt])
+}
+
+model MetaDelivery {
+  id                String   @id
+  phoneNumberId     String
+  providerMessageId String
+  peer              String
+  callbackId        String?
+  status            String
+  errorCode         Int?
+  providerTimestamp DateTime
+  createdAt         DateTime @default(now())
+
+  @@index([phoneNumberId, providerMessageId])
+  @@index([callbackId])
+}

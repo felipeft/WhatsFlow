@@ -14,6 +14,8 @@
 
 Este documento descreve o fluxo-alvo do MVP. Na Sprint 1, Fase 2, nenhum dos fluxos de atendimento é implementado; apenas a infraestrutura de execução e health checks será disponibilizada, conforme ADR-007.
 
+Na Sprint 2/Fase 4, o transporte foi implementado e validado ponta a ponta: webhook → inbox persistida → ACK → worker → mensagens/recibos. Envios explícitos criam mensagem/outbox na mesma transação; o worker chama a Meta e acompanha os recibos. Em 2026-10-02, uma mensagem real foi recebida/persistida e uma resposta do WhatsFlow chegou ao aparelho com estados `sent` e `delivered`. A Fase 5 passou a criar ou recuperar atomicamente a conversa por canal, número empresarial e contato, vinculou mensagens inbound/outbound e expôs histórico paginado. Ainda não existem resposta automática, classificação, IA, handoff ou estados complexos de atendimento. O processamento assíncrono usa PostgreSQL diretamente, sem broker intermediário. Timeout/crash no envio não dispara retry cego; fica incerto para reconciliação/inspeção.
+
 ## Atores e estados
 
 ### Atores
@@ -81,7 +83,7 @@ sequenceDiagram
 
 ### 1. Cliente envia a mensagem
 
-O cliente inicia ou continua uma conversa no número oficial da TechCare. A experiência deve deixar claro que há automação e que atendimento humano pode ser solicitado.
+O cliente inicia ou continua uma conversa no número conectado à empresa demonstrativa. Na demonstração, o conteúdo representa a Atlas Tech, mas o fluxo pertence ao WhatsFlow e não depende dessa marca. A experiência deve deixar claro que há automação e que atendimento humano pode ser solicitado.
 
 **Responsável:** cliente e WhatsApp.
 
@@ -99,11 +101,11 @@ A WhatsApp Cloud API notifica o endpoint público do WhatsFlow. O evento pode se
 
 ### 3. Admissão e persistência
 
-O backend normaliza o evento, usa o ID externo como parte da chave idempotente e grava evento, contato/conversa/mensagem e outbox na mesma transação. Só então confirma o webhook.
+O backend autentica e valida o envelope, calcula o digest idempotente e persiste a inbox durável antes de confirmar o webhook. O worker normaliza o evento em transação separada: cria ou recupera a conversa pela identidade `(whatsapp, phoneNumberId, externalContactId)`, vincula a mensagem e avança a última atividade sem regressão. Mensagens de saída criam conversa/mensagem/outbox na mesma transação.
 
 **Responsável:** módulos Webhooks, Messaging e Conversations.
 
-**Resultado:** mensagem aceita para processamento ou duplicidade reconhecida sem novo efeito.
+**Resultado:** evento aceito para processamento ou duplicidade reconhecida sem novo efeito; após o worker, a mensagem integra um único histórico de conversa.
 
 **Exceções:** conflito de integridade, dado obrigatório ausente ou falha transacional. Em falha de persistência, o sistema não deve fingir sucesso.
 
@@ -123,7 +125,7 @@ O worker carrega apenas o necessário:
 
 - estado e modo atual da conversa;
 - mensagens recentes ou resumo controlado;
-- FAQ e serviços ativos relevantes;
+- FAQ, produtos e políticas ativas relevantes;
 - políticas de tom, limites e escalonamento;
 - horário e informações aprovadas da empresa.
 
@@ -138,10 +140,10 @@ Primeiro, regras determinísticas tratam casos inequívocos, como pedido explíc
 Intenções iniciais sugeridas:
 
 - `greeting` — saudação/início;
-- `faq` — horário, endereço, processo e políticas aprovadas;
-- `service_catalog` — consulta de serviço suportado;
-- `service_diagnosis_request` — tentativa de diagnóstico;
-- `quote_or_deadline` — preço/prazo que pode exigir confirmação;
+- `faq` — horário, endereço, entrega, pagamento, garantia, troca e outras políticas aprovadas;
+- `product_catalog` — consulta de produto ou categoria disponível no catálogo;
+- `product_compatibility` — dúvida de compatibilidade que pode exigir confirmação;
+- `availability_or_delivery` — estoque ou prazo de entrega que pode exigir confirmação;
 - `human_request` — pedido explícito de pessoa;
 - `complaint_or_sensitive` — reclamação, risco ou caso sensível;
 - `unsupported` — fora do escopo;
@@ -161,7 +163,7 @@ A aplicação avalia a classificação, estado e regras. A “confiança” decl
 
 ### 8. Geração e validação da resposta
 
-A resposta deve ser curta, útil, em português do Brasil e baseada no contexto aprovado. Ela não pode prometer diagnóstico, preço final ou prazo não fornecido por regra confiável.
+A resposta deve ser curta, útil, em português do Brasil e baseada no contexto aprovado. Ela não pode confirmar estoque, compatibilidade, preço, pagamento, entrega, garantia ou troca sem uma fonte confiável.
 
 Antes do envio, o backend valida:
 
@@ -194,7 +196,7 @@ Webhooks posteriores podem indicar envio, entrega, leitura ou falha. O sistema a
 
 - texto equivalente a “quero falar com uma pessoa”;
 - reclamação, ameaça, risco físico ou tema sensível;
-- pedido de diagnóstico definitivo, negociação ou exceção de política;
+- pedido de confirmação não fundamentada de compatibilidade/estoque, negociação ou exceção de política;
 - pergunta não coberta por catálogo/FAQ;
 - duas tentativas automatizadas sem progresso, inicialmente configurável;
 - falha persistente da IA ou do canal;
@@ -260,7 +262,7 @@ O texto exato será aprovado pelo produto. Deve reconhecer a solicitação sem a
 ## Cenários de aceite
 
 1. **FAQ conhecida:** cliente pergunta horário; sistema responde apenas com horário ativo cadastrado e registra toda a cadeia.
-2. **Serviço conhecido:** cliente pergunta se há manutenção de notebook; resposta usa catálogo e não inventa preço.
+2. **Produto conhecido:** cliente pergunta se um acessório é compatível com seu aparelho; resposta usa catálogo aprovado e não inventa estoque, compatibilidade ou preço.
 3. **Pedido humano:** cliente solicita atendente; nenhuma resposta de IA é enviada depois da transição.
 4. **Webhook repetido:** mesmo evento chega duas vezes; existe uma mensagem inbound e no máximo uma resposta.
 5. **IA indisponível:** mensagem permanece registrada, ocorre retry limitado e o cliente recebe fallback ou handoff.

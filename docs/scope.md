@@ -17,15 +17,15 @@
 
 ## Objetivo do projeto
 
-Construir uma plataforma comercial de atendimento inteligente que conecte o WhatsApp de uma pequena empresa a uma operação organizada, rastreável e parcialmente automatizada. O MVP deve provar que perguntas comuns podem ser atendidas com segurança, sem perder o histórico e sem impedir a intervenção humana.
+Construir uma plataforma de atendimento inteligente que conecte o WhatsApp de uma pequena empresa a uma operação organizada, rastreável e parcialmente automatizada. O WhatsFlow é um projeto robusto de portfólio, não um SaaS comercial. O MVP deve demonstrar capacidade técnica e provar que perguntas comuns podem ser atendidas com segurança, sem perder o histórico e sem impedir a intervenção humana.
 
 O objetivo não é substituir o atendente. É reduzir trabalho repetitivo, melhorar o tempo da primeira resposta e entregar ao atendente contexto suficiente quando sua participação for necessária.
 
 ## Problema que resolve
 
-Pequenas assistências técnicas frequentemente concentram atendimento em um único WhatsApp, com problemas como:
+Pequenas empresas frequentemente concentram atendimento em um único WhatsApp, com problemas como:
 
-- repetição manual de respostas sobre serviços, horários, localização e processo de orçamento;
+- repetição manual de respostas sobre produtos, disponibilidade, compatibilidade, entrega, pagamento, garantia e troca;
 - demora fora de períodos de disponibilidade;
 - conversas sem classificação ou acompanhamento consistente;
 - perda de contexto quando outra pessoa assume o atendimento;
@@ -38,7 +38,7 @@ O WhatsFlow cria uma porta de entrada automatizada e um registro operacional ún
 
 ### Público primário
 
-Pequenas empresas brasileiras que atendem clientes pelo WhatsApp e possuem volume relevante de dúvidas repetitivas, inicialmente representadas por assistências técnicas de equipamentos eletrônicos.
+Pequenas empresas brasileiras que atendem clientes pelo WhatsApp e possuem volume relevante de dúvidas repetitivas. O cenário demonstrativo é uma loja de eletrônicos e acessórios, sem restringir a arquitetura a esse segmento.
 
 ### Perfis de usuário
 
@@ -46,24 +46,24 @@ Pequenas empresas brasileiras que atendem clientes pelo WhatsApp e possuem volum
 | --------------------------- | ------------------------------------------------------------ | -------------------------------------- |
 | Cliente final               | Obter resposta rápida e saber o próximo passo do atendimento | WhatsApp                               |
 | Atendente                   | Visualizar contexto, assumir e responder conversas           | Painel web                             |
-| Administrador da empresa    | Manter serviços/FAQ básicos e acompanhar a operação          | Painel web                             |
+| Administrador da empresa    | Manter produtos/FAQ básicos e acompanhar a operação          | Painel web                             |
 | Equipe técnica do WhatsFlow | Operar integrações, investigar erros e evoluir o produto     | Ferramentas técnicas e observabilidade |
 
 ## Empresa fictícia
 
-O MVP será contextualizado para a **TechCare Assistência Eletrônica**, empresa fictícia brasileira especializada em diagnóstico e manutenção de notebooks, computadores, smartphones e periféricos.
+O MVP será contextualizado para a **Atlas Tech**, empresa fictícia que demonstra uma pequena loja de eletrônicos e acessórios. Atlas Tech não é o produto nem uma organização jurídica usada nas integrações externas; é somente um conjunto de dados, conteúdo e identidade visual para demonstrar o WhatsFlow.
 
 ### Características operacionais assumidas
 
 - uma unidade física;
 - atendimento em português do Brasil;
 - equipe pequena, com papéis de administrador e atendente;
-- serviços divulgados em catálogo, sem garantir diagnóstico ou preço final pelo chatbot;
-- orçamento definitivo emitido somente após avaliação técnica;
+- produtos divulgados em catálogo, sem garantir estoque, compatibilidade ou condição comercial pela automação;
+- disponibilidade, entrega, pagamento, garantia e troca confirmados por conteúdo aprovado ou atendimento humano;
 - horário comercial configurado pela empresa;
 - WhatsApp como canal principal de primeiro contato.
 
-Dados como endereço, horários, serviços, preços informativos e políticas serão conteúdo configurável; não deverão ficar fixos em prompts ou código.
+Dados como marca, endereço, horários, produtos, preços informativos e políticas serão conteúdo configurável; não deverão ficar fixos em prompts, regras ou código de infraestrutura.
 
 ## Funcionalidades do MVP
 
@@ -90,13 +90,13 @@ Dados como endereço, horários, serviços, preços informativos e políticas se
 - classificar a intenção em um conjunto limitado e versionado;
 - responder perguntas frequentes e consultas ao catálogo aprovado;
 - produzir saída estruturada contendo, no mínimo, intenção, ação recomendada, resposta e motivo de escalonamento quando aplicável;
-- evitar afirmar diagnóstico, prazo ou preço não confirmado;
+- evitar afirmar estoque, compatibilidade, prazo de entrega, condição de pagamento ou preço não confirmado;
 - registrar versão do prompt/política, provedor/modelo e resultado operacional necessários para auditoria;
 - usar fallback seguro em falhas, recusas, baixa confiança ou saída inválida.
 
 ### 4. Catálogo e FAQ
 
-- consultar serviços ativos, descrição, categoria, faixa ou observação informativa quando cadastrada;
+- consultar produtos ativos, descrição, categoria, compatibilidade, faixa de preço ou observação informativa quando cadastrada;
 - consultar respostas aprovadas de FAQ;
 - permitir manutenção administrativa básica desses dados;
 - impedir que conteúdo inativo seja usado em novas respostas.
@@ -136,9 +136,9 @@ Dados como endereço, horários, serviços, preços informativos e políticas se
 - múltiplas unidades e múltiplos números de WhatsApp;
 - anexos, áudio, imagem, transcrição e análise multimodal;
 - campanhas, mensagens ativas e gestão de templates aprovados;
-- agenda e confirmação de visitas;
-- abertura e acompanhamento de ordem de serviço;
-- orçamento, pagamentos e integrações com ERP/CRM;
+- reserva de produtos e acompanhamento de pedidos;
+- estoque e logística integrados;
+- pagamentos e integrações com ERP/CRM;
 - base de conhecimento com recuperação semântica mais ampla;
 - construtor visual de fluxos e regras por empresa;
 - relatórios avançados, SLA e análise de satisfação;
@@ -151,12 +151,12 @@ Esses itens são possibilidades de evolução e não representam compromisso do 
 
 ## Restrições do MVP
 
-- apenas uma empresa e um número de WhatsApp em produção piloto;
+- apenas uma empresa demonstrativa e um número de WhatsApp no ambiente de demonstração;
 - canal limitado ao WhatsApp Cloud API;
 - automação plena apenas para texto;
 - mensagens não textuais devem ser registradas quando possível e receber fallback/escalonamento, sem interpretação avançada;
 - interface e respostas em português do Brasil;
-- catálogo simples, sem estoque, ordem de serviço ou cálculo dinâmico de orçamento;
+- catálogo simples, sem estoque em tempo real, pedidos, logística ou cálculo dinâmico de condições comerciais;
 - atendimento humano realizado no painel, sem roteamento sofisticado entre equipes;
 - sem garantia de resposta instantânea quando provedores externos estiverem indisponíveis;
 - hospedagem e região devem ser escolhidas considerando custo, latência e requisitos de proteção de dados;
@@ -174,7 +174,7 @@ React/Vite e Express foram definidos pelo responsável do projeto na Sprint 1, F
 | API interna              | REST/JSON com contrato OpenAPI                                           | Simplicidade, testabilidade e documentação do contrato.                                   |
 | Persistência             | PostgreSQL                                                               | Integridade transacional, consultas relacionais e maturidade operacional.                 |
 | Acesso a dados           | ORM com migrações, inicialmente Prisma                                   | Tipagem, produtividade e histórico de evolução do esquema.                                |
-| Processamento assíncrono | Redis + BullMQ, sujeito a validação operacional                          | Retentativas, atraso e isolamento do webhook sem exigir um broker mais complexo.          |
+| Processamento assíncrono | Inbox/outbox PostgreSQL com worker separado (ADR-009)                    | Durabilidade transacional no banco já operado; Redis/BullMQ permanece alternativa futura. |
 | IA                       | OpenAI Responses API, modelo configurável                                | Saída estruturada e integração contemporânea, mantendo seleção do modelo substituível.    |
 | WhatsApp                 | WhatsApp Cloud API                                                       | Canal oficial de integração da Meta.                                                      |
 | Contêineres              | Docker para ambientes reproduzíveis                                      | Paridade entre desenvolvimento e implantação.                                             |
@@ -195,7 +195,7 @@ Não se recomenda Kubernetes, microsserviços ou mensageria dedicada no MVP sem 
 - indisponibilidade da IA não perde a mensagem e resulta em nova tentativa limitada ou fallback;
 - ações administrativas respeitam autenticação e autorização.
 
-### Indicadores iniciais para o piloto
+### Indicadores iniciais para a demonstração controlada
 
 As metas numéricas devem ser confirmadas depois de estabelecer volume e baseline. O MVP deve medir:
 
@@ -208,13 +208,13 @@ As metas numéricas devem ser confirmadas depois de estabelecer volume e baselin
 - percentual de respostas aprovadas em avaliação amostral;
 - satisfação ou sinal simples de resolução, se adotado no piloto.
 
-Como porta de entrada para produção, nenhum teste crítico de idempotência, handoff e isolamento de acesso pode estar falhando.
+Como gate para a demonstração ponta a ponta, nenhum teste crítico de idempotência, handoff e isolamento de acesso pode estar falhando.
 
 ## Fora do escopo
 
-- substituir sistema de ordem de serviço, ERP, CRM ou financeiro;
-- realizar diagnóstico técnico conclusivo por mensagem;
-- emitir orçamento vinculante ou garantia de prazo;
+- substituir e-commerce, sistema de pedidos, estoque, ERP, CRM ou financeiro;
+- garantir compatibilidade ou disponibilidade sem fonte aprovada;
+- confirmar condição comercial, entrega, garantia ou troca fora das políticas cadastradas;
 - receber pagamentos;
 - disparar marketing em massa;
 - operar múltiplas empresas na mesma implantação do MVP;
@@ -240,6 +240,6 @@ Como porta de entrada para produção, nenhum teste crítico de idempotência, h
 ## Recomendações do Arquiteto
 
 - Transformar os critérios de sucesso em metas numéricas somente após uma semana de dados de piloto ou simulação representativa.
-- Executar uma oficina curta com um técnico e um atendente para produzir FAQ, catálogo e casos que sempre exigem humano.
+- Produzir uma base demonstrativa revisada de FAQ, catálogo e casos que sempre exigem humano, sem incorporar regras da Atlas Tech ao núcleo.
 - Aprovar formalmente a política de retenção antes de usar dados reais de clientes.
 - Realizar uma prova técnica pequena da WhatsApp Cloud API no início da Sprint 2, pois configuração de conta e templates depende de plataforma externa.

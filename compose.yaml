@@ -24,12 +24,22 @@ services:
       context: .
       target: backend
     init: true
-    environment:
+    environment: &backend-environment
       NODE_ENV: development
       HOST: 0.0.0.0
       PORT: 3000
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      META_ENABLED: ${META_ENABLED:-false}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      META_PHONE_NUMBER_ID: ${META_PHONE_NUMBER_ID:-}
+      META_WABA_ID: ${META_WABA_ID:-}
+      META_API_BASE_URL: ${META_API_BASE_URL:-}
+      META_API_VERSION: ${META_API_VERSION:-}
+      META_REQUEST_TIMEOUT_MS: ${META_REQUEST_TIMEOUT_MS:-10000}
+      META_WORKER_POLL_MS: ${META_WORKER_POLL_MS:-1000}
     command:
       [
         'sh',
@@ -62,6 +72,23 @@ services:
       timeout: 5s
       retries: 12
       start_period: 15s
+
+  worker:
+    profiles: ['meta']
+    build:
+      context: .
+      target: backend
+    init: true
+    environment: *backend-environment
+    command: ['pnpm', '--filter', '@whatsflow/backend', 'worker:start']
+    healthcheck:
+      disable: true
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - development
+    stop_grace_period: 45s
 
   frontend:
     build:

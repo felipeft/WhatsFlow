@@ -2,6 +2,10 @@ import { createApp } from '@/app.js';
 import { loadEnv } from '@/config/env.js';
 import { createDatabase } from '@/infrastructure/database.js';
 import { createLogger } from '@/infrastructure/logger.js';
+import { getMetaConfig } from '@/integrations/meta/config.js';
+import { createMetaStore } from '@/integrations/meta/store.js';
+import { createWebhookService } from '@/integrations/meta/webhook.service.js';
+import { createConversationService } from '@/modules/conversations/conversation.service.js';
 
 async function start() {
   const env = loadEnv();
@@ -10,13 +14,22 @@ async function start() {
   await database.connect();
   await database.check();
 
-  const server = createApp({ logger, checkDatabase: database.check }).listen(
-    env.PORT,
-    env.HOST,
-    () => {
-      logger.info({ port: env.PORT }, 'Servidor iniciado');
-    },
-  );
+  const meta = getMetaConfig(env);
+  const server = createApp({
+    logger,
+    checkDatabase: database.check,
+    conversations: createConversationService(database.client),
+    ...(meta
+      ? {
+          metaWebhook: createWebhookService(
+            meta,
+            createMetaStore(database.client, logger),
+          ),
+        }
+      : {}),
+  }).listen(env.PORT, env.HOST, () => {
+    logger.info({ port: env.PORT }, 'Servidor iniciado');
+  });
   server.on('error', () => {
     logger.fatal(
       { event: 'server_start_failed' },
@@ -52,7 +65,8 @@ start().catch((error: unknown) => {
   // Detalhes de conexão nunca são serializados. Env expõe apenas nomes das chaves.
   const message =
     error instanceof Error &&
-    error.message.startsWith('Variáveis de ambiente inválidas:')
+    (error.message.startsWith('Variáveis de ambiente inválidas:') ||
+      error.message.startsWith('Configuração Meta inválida:'))
       ? error.message
       : 'Falha no bootstrap; verifique configuração e disponibilidade do banco';
   logger.fatal({ event: 'bootstrap_failed' }, message);

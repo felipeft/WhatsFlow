@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { getMetaConfig, metaEnvironment } from '@/integrations/meta/config.js';
 
 const schema = z.object({
+  ...metaEnvironment,
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
     .default('development'),
@@ -31,5 +33,6 @@ export function parseEnv(input: NodeJS.ProcessEnv) {
     ];
     throw new Error(`Variáveis de ambiente inválidas: ${keys.join(', ')}`);
   }
+  getMetaConfig(result.data);
   return result.data;
 }
